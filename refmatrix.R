@@ -1,40 +1,41 @@
-
 library(ncdf4)
+library(akima)
+library(this.path) #This package is used to get the directory of the executing script so that we can use relative paths
+current_directory <- this.path::this.dir()
+
+
 setwd <- "C:\\Users\\DELL\\Downloads\\GCBB_datasets"
 
-file0 = "C:\\Users\\DELL\\Downloads\\GCBB_datasets\\latlon.nc"
+file0 = paste0(current_directory,"/ignored_by_git/latlon.nc", sep="")
 ncf = nc_open(file0)
 XLAT = ncvar_get(ncf,"XLAT") 
 XLONG = ncvar_get(ncf,"XLONG") 
 
-file1<-"C:\\Users\\DELL\\Downloads\\GCBB_datasets\\CTL_S4\\cpost_ctl_s4_XLAI_monthly.nc"
+file1<- paste0(current_directory,"/ignored_by_git/CTL_S4/cpost_ctl_s4_XLAI_monthly.nc",sep="")
 nc1 = nc_open(file1)
-file2<-"C:\\Users\\DELL\\Downloads\\GCBB_datasets\\BIO_S4\\cpost_bio_s4_XLAI_monthly.nc"
+file2<- paste0(current_directory,"/ignored_by_git/BIO_S4/cpost_bio_s4_XLAI_monthly.nc",sep="")
 nc2 = nc_open(file2)
-xlai1 = ncvar_get(nc1,"XLAI")
-xlai2 =ncvar_get(nc2,"XLAI")
-dim(xlai1)
-X1=xlai1[,,1,2]
-X2=xlai2[,,1,2]
+xlai1_CTL = ncvar_get(nc1,"XLAI")
+xlai2_BIO =ncvar_get(nc2,"XLAI")
+nc_close(ncf)
+nc_close(nc1)
+nc_close(nc2)
+'
+Difference in the LAI will be largest in the middle of summer when land use (replacing natural
+vegetation by miscanthus) change results in very high LAI for miscanthus. Therefore let us 
+use month of July (month index = 7) for comparison
+'
 
-library(akima)
-my.matrix1 <- interp(XLONG,XLAT,X1,nx=dim(XLONG)[1],ny=dim(XLONG)[2])
-my.matrix2 <- interp(XLONG,XLAT,X2,nx=dim(XLONG)[1],ny=dim(XLONG)[2])
-
-d1<-as.data.frame(my.matrix1[["z"]]) #assigning 0 to all NA values for control
-                                    #max value comes out to 5
-d1[is.na(d1)] <- 0
-
-d2<-as.data.frame(my.matrix2[["z"]]) #assigning 0 to all NA values for control
-
-d2[is.na(d2)] <- 0
+ctl_lai_july=xlai1_CTL[,,7,30]
+bio_lai_july=xlai2_BIO[,,7,30]
 
 
-ref.matrix=my.matrix1[["z"]]-my.matrix1[["z"]] # same operation on the differnce of two matrix
-                                              # max value comes out to be zero
-d1_ref.matrix=as.data.frame(ref.matrix)
-d1_ref.matrix[is.na(d1_ref.matrix)] <- 0
-d1_ref.matrix
-max(d1_ref.matrix)
+ctl_lai_july_matrix <- interp(XLONG,XLAT,ctl_lai_july,nx=dim(XLONG)[1],ny=dim(XLONG)[2])
+bio_lai_july_matrix <- interp(XLONG,XLAT,bio_lai_july,nx=dim(XLONG)[1],ny=dim(XLONG)[2])
 
-for (r in 1:nrow(ref.matrix))   
+#Creating a new list (difference)
+diff_lai <- bio_lai_july_matrix
+diff_lai$z = bio_lai_july_matrix$z - ctl_lai_july_matrix$z
+filled.contour(ctl_lai_july_matrix)
+filled.contour(bio_lai_july_matrix)
+filled.contour(diff_lai)
